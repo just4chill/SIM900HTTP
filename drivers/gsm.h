@@ -2,25 +2,23 @@
 #ifndef __gsm_h__
 #define __gsm_h__
 
-extern void 	gsm_read_tcpstate(void);
-extern void 	gsm_read_tipaddress(void);
+extern uint8_t 	gsm_send_check_resp	(	char *, 
+										char *
+									);
 
-extern uint8_t 	gsm_check_comm(void);
-extern uint8_t 	gsm_check_sim(void);
-extern uint8_t 	gsm_read_rssi(void);
-extern uint8_t 	gsm_set_apn(char *);
-extern uint8_t 	gsm_wireless_up(void);
-extern uint8_t 	gsm_set_sapbr(char *);
-extern uint8_t 	gsm_up_sapbr(void);
-extern uint8_t 	gsm_http_init(void);
-extern uint8_t 	gsm_http_term(void);
-extern uint8_t 	gsm_http_para(char *);
-extern uint8_t 	gsm_http_get(void);
-extern uint16_t gsm_http_read(void);
+extern void 	gsm_allocate_mem_for_tokens	(	uint8_t, 
+												uint8_t
+											);
 
-extern char tcp_state[20];
-extern char ip_address[20];
-extern char http_resp_code[5];
-extern char http_read_buff[64];
+extern void 	gsm_free_mem_for_tokens(uint8_t);
+
+extern int8_t 	gsm_tokenize_response(	char *,
+										char *,
+										char *,
+										char *,
+										uint8_t
+									);
+
+extern char * respTokens[];
 
 #endif

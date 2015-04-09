@@ -11,12 +11,9 @@
 #include <stdlib.h>
 #include "gsm.h"
 
-#define APN "TATA.DOCOMO.INTERNET"
-
-#define get_url "http://api.openweathermap.org/data/2.5/weather?q=bengaluru,in"
-
 void 		prvSetupHardware( void );
 static void httpProcess(void * pvParameters);
+
 
 int main(void)
 {
@@ -39,11 +36,7 @@ int main(void)
 
 static void httpProcess(void * pvParameters)
 {
-	uint8_t test_level = 0;
-	uint8_t exp_level = 7;
-	uint8_t rssi = 0;
 	uart_print(0, "http started\r\n");
-	char buff[20];
 	uint8_t flag = 0;
 	
 	for(;;)
@@ -51,31 +44,13 @@ static void httpProcess(void * pvParameters)
 		if(flag == 0)
 		{
 			flag = 1;
-			uart_print(3, "AT\r");
-			vTaskDelay(500);
-			char * key1 = strstr(uart3_rx_fifo, "OK");
-			if(key1)
+			if(gsm_send_check_resp("AT", "OK"))
 			{
-				uart_print(0,"Got response\r\n");
-			}
-			
-			uart_print(3, "AT+CREG?\r");
-			vTaskDelay(500);
-			key1 = strstr(uart3_rx_fifo, "+CREG: 0,1");
-			if(key1)
-			{
-				uart_print(0,"Network register\r\n");
-			}
-
-			uart_print(3, "AT+CSQ\r");
-			vTaskDelay(500);
-			key1 = strstr(uart3_rx_fifo, "+CSQ:");
-			if(key1)
-			{
-				char * key2 = memchr(uart3_rx_fifo, ':',uart3_rx_head);
-				char * token = strtok(uart3_rx_fifo, ":");
-				sprintf(buff,"%s,%s,%s\r\n",key1,key2,token);
-				uart_print(0, buff);
+				uart_print(0, "Got Rep for AT\r\n");
+				if(gsm_send_check_resp("AT+CREG?", "+CREG: 0,1"))
+				{
+					uart_print(0, "Got Rep for CREG\r\n");
+				}
 			}
 		}
 	}
