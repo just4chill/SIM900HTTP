@@ -3,12 +3,14 @@
 #include "uart.h"
 #include <string.h>
 #include "gsm.h"
+#include <stdio.h>
 
-
-char tcp_state[32];
-char ip_address[32];
+char tcp_state[20];
+char ip_address[20];
 char http_resp_code[5];
-char http_read_buff[128];
+char http_read_buff[64];
+
+char temp_buff[20];
 
 /*
 	Command	:  	AT
@@ -21,7 +23,8 @@ uint8_t gsm_check_comm(void)
 
 	// TODO: Timer to unblock
 	while(uart3_rx_fifo[uart3_rx_head] != '\n');
-	if(uart3_rx_fifo[0] == 'O' && uart3_rx_fifo[1] == 'K')
+	while(uart3_rx_fifo[uart3_rx_head] != '\n');
+	if(uart3_rx_fifo[3] == 'O' && uart3_rx_fifo[4] == 'K')
 	{
 		return 1;
 	}
@@ -34,12 +37,18 @@ uint8_t gsm_check_comm(void)
 */
 uint8_t gsm_check_sim(void)
 {
+
 	uart3_rx_head = 0;
 	uart_print(3, "AT+CREG?\r\n");
 
 	// TODO: Timer to unblock
 	while(uart3_rx_fifo[uart3_rx_head] != '\n');
-	if(uart3_rx_fifo[9] == '1')
+	while(uart3_rx_fifo[uart3_rx_head] != '\n');
+
+	sprintf(temp_buff, "%c,%c\r\n",uart3_rx_fifo[3],uart3_rx_fifo[4]);
+	uart_print(0, temp_buff);
+
+	if(uart3_rx_fifo[12] == '1')
 	{
 		return 1;
 	}

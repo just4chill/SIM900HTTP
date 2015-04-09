@@ -3,6 +3,7 @@
 #include "LPC17xx.h"
 #include "system_LPC17xx.h"
 #include <stdint.h>
+#include <string.h>
 
 #define TEMT (1 << 6) 
 
@@ -64,7 +65,14 @@ void UART3_IRQHandler(void)
 	else
 	{
 		uart3_rx_head = tmphead;
-		uart3_rx_fifo[tmphead] = LPC_UART3->RBR;
+		uart3_rx_fifo[tmphead - 1] = LPC_UART3->RBR;
+		//uart3_rx_fifo[tmphead + 1] = '\0';	
+		// char c = LPC_UART3->RBR;
+		// if(c != '\n')
+		// {
+		// 	uart3_rx_fifo[tmphead] = c;
+		// 	uart3_rx_fifo[tmphead + 1] = '\0';			
+		// }
 	}
 }
 

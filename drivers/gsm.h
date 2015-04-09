@@ -18,9 +18,9 @@ extern uint8_t 	gsm_http_para(char *);
 extern uint8_t 	gsm_http_get(void);
 extern uint16_t gsm_http_read(void);
 
-extern char tcp_state[32];
-extern char ip_address[32];
+extern char tcp_state[20];
+extern char ip_address[20];
 extern char http_resp_code[5];
-extern char http_read_buff[128];
+extern char http_read_buff[64];
 
 #endif

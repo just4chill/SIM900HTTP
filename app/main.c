@@ -25,7 +25,7 @@ int main(void)
 
 	xTaskCreate(httpProcess,
 			(signed portCHAR *)"httpProcess",
-			128,
+			256,
 			NULL,
 			3,
 			NULL);
@@ -42,79 +42,42 @@ static void httpProcess(void * pvParameters)
 	uint8_t test_level = 0;
 	uint8_t exp_level = 7;
 	uint8_t rssi = 0;
-	if(gsm_check_comm())
-	{
-		test_level++;
-		if(gsm_check_sim())
-		{
-			test_level++;
-			rssi = gsm_read_rssi();
-			if(rssi > 0)
-			{
-				test_level++;
-				if(gsm_set_apn(APN))
-				{
-					test_level++;
-					if(gsm_wireless_up())
-					{
-						test_level++;
-						if(gsm_set_sapbr(APN))
-						{
-							test_level++;
-							if(gsm_up_sapbr())
-							{
-								test_level++;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if(test_level == exp_level)
-	{
-		// All tests are passed
-		// Continue task
-		gsm_read_tcpstate();
-		gsm_read_tipaddress();
-
-		uart_print(0, "TCP State: ");
-		uart_print(0, tcp_state);
-		uart_append_crlf(0);
-		uart_print(0, "IP: ");
-		uart_print(0, ip_address);
-		uart_append_crlf(0);
-	}
-	else
-	{
-		// Display error and kill the task
-	}
-
+	uart_print(0, "http started\r\n");
+	char buff[20];
+	uint8_t flag = 0;
+	
 	for(;;)
 	{
-		if(gsm_http_init())
+		if(flag == 0)
 		{
-			if(gsm_http_para(get_url))
+			flag = 1;
+			uart_print(3, "AT\r");
+			vTaskDelay(500);
+			char * key1 = strstr(uart3_rx_fifo, "OK");
+			if(key1)
 			{
-				if(gsm_http_get())
-				{
-					if(gsm_http_read())
-					{
-						if(gsm_http_term())
-						{
-							// Term success
-							uart_print(0, "RESP: ");
-							uart_print(0, http_resp_code);
-							uart_append_crlf(0);
-							uart_print(0, "DATA: ");
-							uart_print(0, http_read_buff);							
-						}
-					}
-				}
+				uart_print(0,"Got response\r\n");
+			}
+			
+			uart_print(3, "AT+CREG?\r");
+			vTaskDelay(500);
+			key1 = strstr(uart3_rx_fifo, "+CREG: 0,1");
+			if(key1)
+			{
+				uart_print(0,"Network register\r\n");
+			}
+
+			uart_print(3, "AT+CSQ\r");
+			vTaskDelay(500);
+			key1 = strstr(uart3_rx_fifo, "+CSQ:");
+			if(key1)
+			{
+				char * key2 = memchr(uart3_rx_fifo, ':',uart3_rx_head);
+				char * token = strtok(uart3_rx_fifo, ":");
+				sprintf(buff,"%s,%s,%s\r\n",key1,key2,token);
+				uart_print(0, buff);
 			}
 		}
-		vTaskDelay(500);
 	}
 }
 
@@ -124,6 +87,6 @@ void prvSetupHardware( void )
 	SystemInit();
 	SystemCoreClockUpdate();
 	uart_init(0, 115200);			// Debug port
-	uart_init(1, 9600);				// Modem
+	uart_init(3, 9600);				// Modem
 	uart_print(0, "System started\r\n");
 }
