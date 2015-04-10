@@ -5,82 +5,104 @@
 #include <stdint.h>
 #include <string.h>
 
+#define OVF_SLOT 1
+
 #define TEMT (1 << 6) 
+#define PCLK_UART3_MASK (3 << 18)
 
-//volatile struct uartFIFO * UART0_FIFO;
-
-volatile uint8_t uart0_rx_tail;
-volatile uint8_t uart0_rx_head;
-volatile uint8_t uart0_rx_fifo[UART_RX0_BUFFER_SIZE];
-
-volatile uint8_t uart1_rx_tail;
-volatile uint8_t uart1_rx_head;
-volatile uint8_t uart1_rx_fifo[UART_RX1_BUFFER_SIZE];
-
-volatile uint8_t uart3_rx_tail;
-volatile uint8_t uart3_rx_head;
-volatile uint8_t uart3_rx_fifo[UART_RX3_BUFFER_SIZE];
-
-void UART0_IRQHandler(void)
-{
-	uint8_t tmphead;
-	tmphead = (uart0_rx_head + 1) & UART_RX0_BUFFER_MASK;
-	if(tmphead == uart0_rx_tail)
-	{
-		// Buffer overflow
-		uart0_rx_head = 0;
-	}
-	else
-	{
-		uart0_rx_head = tmphead;
-		uart0_rx_fifo[tmphead] = LPC_UART0->RBR;
-	}
-}
-
-void UART1_IRQHandler(void)
-{
-	uint8_t tmphead;
-	tmphead = (uart1_rx_head + 1) & UART_RX1_BUFFER_MASK;
-	if(tmphead == uart1_rx_tail)
-	{
-		// Buffer overflow
-		uart1_rx_head = 0;
-	}
-	else
-	{
-		char c = LPC_UART1->RBR;
-		if(c != '\n')
-		{
-			uart1_rx_head = tmphead;
-			uart1_rx_fifo[tmphead] = c;			
-		}
-
-	}
-}
+UART_FIFO uart3;
 
 void UART3_IRQHandler(void)
 {
-	uint8_t tmphead;
-	tmphead = (uart3_rx_head + 1) & UART_RX3_BUFFER_MASK;
-	if(tmphead == uart3_rx_tail)
+	uint8_t IIRValue, LSRValue;
+	IIRValue = LPC_UART3->IIR;
+	IIRValue >>= 1; /* skip pending bit in IIR */
+	IIRValue &= 0x07; /* check bit 1~3, interrupt identification */
+	char c = '\0';
+
+	if ( IIRValue == IIR_RLS )
 	{
-		// Buffer overflow
-		uart3_rx_head = 0;
-	}
-	else
-	{
-		// uart3_rx_head = tmphead;
-		// uart3_rx_fifo[tmphead - 1] = LPC_UART3->RBR;
-		char c = LPC_UART3->RBR;
-		if(c != '\n')
+		LSRValue = LPC_UART3->LSR;
+
+		/* There are errors or break interrupt */
+		/* Read LSR will clear the interrupt */
+		if ( LSRValue & (LSR_OE|LSR_PE|LSR_FE|LSR_RXFE|LSR_BI) )
 		{
-			uart3_rx_head = tmphead;
-			uart3_rx_fifo[tmphead - 1] = c;			
+			uart3.rx_status = LSRValue;
+			char dummy = LPC_UART3->RBR;
+			return;
 		}
+
+		/* If no error on RLS, normal ready, save into the data buffer. */
+		/* Note: read RBR will clear the interrupt */
+		if ( LSRValue & LSR_RDR )
+		{
+			c = LPC_UART3->RBR;
+		}
+	}
+
+	/* Receive Data Available */
+	else if ( IIRValue == IIR_RDA )
+	{
+		c = LPC_UART3->RBR;
+	}
+ 	else if ( IIRValue == IIR_CTI ) /* Character timeout indicator */
+	{
+		/* Character Time-out indicator */
+		uart3.rx_status |= 0x100; /* Bit 9 as the CTI error */
+	}
+
+	if(c != '\0')
+	{
+		if(uart3.num_bytes == _FIFO_SIZE_)
+		{
+			uart3.rx_ovf = 1;
+		}
+		else if(uart3.num_bytes < _FIFO_SIZE_)
+		{
+			uart3.rx_fifo[uart3.i_last] = c;
+			uart3.i_last++;
+			uart3.num_bytes++;
+		}
+		if(uart3.num_bytes == _FIFO_SIZE_)
+		{
+			uart3.fifo_full = 1;
+		}
+		if(uart3.i_last == _FIFO_SIZE_)
+		{
+			uart3.i_last = 0;
+		}
+		uart3.rx_not_empty = 1;
 	}
 }
 
-#define PCLK_UART3_MASK (3 << 18)
+uint8_t uart_getbyte(void)
+{
+	uint8_t _byte = 0;
+	if(uart3.num_bytes == _FIFO_SIZE_)
+	{
+		uart3.fifo_full = 0;
+	}
+
+	if(uart3.num_bytes > 0)
+	{
+		_byte = uart3.rx_fifo[uart3.i_first];
+		uart3.i_first++;
+		uart3.num_bytes--;
+	}
+	else
+	{
+		uart3.rx_not_empty = 0;
+	}
+
+	if(uart3.i_first == _FIFO_SIZE_)
+	{
+		uart3.i_first = 0;
+	}
+
+	return _byte;
+}
+
 
 void uart_init(uint8_t port, uint32_t baudrate)
 {
@@ -89,8 +111,8 @@ void uart_init(uint8_t port, uint32_t baudrate)
 
 	if(port == 0)
 	{
-		uart0_rx_tail = 0;
-		uart0_rx_head = 0;
+		// uart0_rx_tail = 0;
+		// uart0_rx_head = 0;
 
 		LPC_PINCON->PINSEL0 &= ~0x000000F0;
 		LPC_PINCON->PINSEL0 |= 0x00000050; /* RxD0 is P0.3 and TxD0 is P0.2 */
@@ -127,14 +149,14 @@ void uart_init(uint8_t port, uint32_t baudrate)
 		LPC_UART0->LCR = 0x03; /* DLAB = 0 */
 		LPC_UART0->FCR = 0x07; /* Enable and reset TX and RX FIFO. */
 
-		NVIC_EnableIRQ(UART0_IRQn);
-		LPC_UART0->IER = IER_RBR; /* Enable UART0 interrupt */
+		//NVIC_EnableIRQ(UART0_IRQn);
+		//LPC_UART0->IER = IER_RBR; /* Enable UART0 interrupt */
 	}	
 
 	else if(port == 1)
 	{
-		uart1_rx_tail = 0;
-		uart1_rx_head = 0;
+		// uart1_rx_tail = 0;
+		// uart1_rx_head = 0;
 
 		LPC_PINCON->PINSEL4 &= ~0x0000000F;
 		LPC_PINCON->PINSEL4 |= 0x0000000A; /* Enable RxD1 P2.1, TxD1 P2.0 */
@@ -171,14 +193,12 @@ void uart_init(uint8_t port, uint32_t baudrate)
 		LPC_UART1->LCR = 0x03; /* DLAB = 0 */
 		LPC_UART1->FCR = 0x07; /* Enable and reset TX and RX FIFO. */
 
-		NVIC_EnableIRQ(UART1_IRQn);
-		LPC_UART1->IER = IER_RBR; /* Enable UART0 interrupt */
+		//NVIC_EnableIRQ(UART1_IRQn);
+		//LPC_UART1->IER = IER_RBR; /* Enable UART0 interrupt */
 	}
 
 	else if(port == 3)
 	{
-	uart3_rx_tail = 0;
-	uart3_rx_head = 0;
 
 	pclk = SystemCoreClock / 4;
 
@@ -197,10 +217,11 @@ void uart_init(uint8_t port, uint32_t baudrate)
     Fdiv = ( pclk / 16 ) / baudrate ;	// Set baud rate
     LPC_UART3->DLM = Fdiv / 256;
     LPC_UART3->DLL = Fdiv % 256;
+    LPC_UART3->ACR = 0x00;		// Disable autobaud
     LPC_UART3->LCR = 0x03;		// 8 bits, no Parity, 1 Stop bit DLAB = 0
     LPC_UART3->FCR = 0x07;		// Enable and reset TX and RX FIFO
     NVIC_EnableIRQ(UART3_IRQn);
-	LPC_UART3->IER = IER_RBR; /* Enable UART3 interrupt */			
+	LPC_UART3->IER = IER_RBR | IER_RLS; /* Enable UART3 interrupt */			
 	}
 }
 

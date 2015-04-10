@@ -28,14 +28,12 @@ OBJS = 	list.o \
 		tasks.o \
 		timers.o \
 		port.o \
-		heap_1.o \
+		heap_2.o \
 		lpc17xx.o \
 		system_LPC17xx.o \
 		main.o \
 		uart.o \
 		syscalls.o \
-		delay.o \
-		gsm.o
 
 all: $(OBJS)
 	$(CC)gcc $(LFLAGS) $(OBJS) -o $(OUTPUT)
@@ -60,6 +58,9 @@ port.o: port.c
 	$(CC)gcc $(CFLAGS) $^ -o $@
 
 heap_1.o: heap_1.c
+	$(CC)gcc $(CFLAGS) $^ -o $@
+
+heap_2.o: heap_2.c
 	$(CC)gcc $(CFLAGS) $^ -o $@
 
 main.o: main.c
