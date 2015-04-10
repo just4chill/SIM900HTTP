@@ -48,8 +48,13 @@ void UART1_IRQHandler(void)
 	}
 	else
 	{
-		uart1_rx_head = tmphead;
-		uart1_rx_fifo[tmphead] = LPC_UART1->RBR;
+		char c = LPC_UART1->RBR;
+		if(c != '\n')
+		{
+			uart1_rx_head = tmphead;
+			uart1_rx_fifo[tmphead] = c;			
+		}
+
 	}
 }
 
@@ -64,15 +69,14 @@ void UART3_IRQHandler(void)
 	}
 	else
 	{
-		uart3_rx_head = tmphead;
-		uart3_rx_fifo[tmphead - 1] = LPC_UART3->RBR;
-		//uart3_rx_fifo[tmphead + 1] = '\0';	
-		// char c = LPC_UART3->RBR;
-		// if(c != '\n')
-		// {
-		// 	uart3_rx_fifo[tmphead] = c;
-		// 	uart3_rx_fifo[tmphead + 1] = '\0';			
-		// }
+		// uart3_rx_head = tmphead;
+		// uart3_rx_fifo[tmphead - 1] = LPC_UART3->RBR;
+		char c = LPC_UART3->RBR;
+		if(c != '\n')
+		{
+			uart3_rx_head = tmphead;
+			uart3_rx_fifo[tmphead - 1] = c;			
+		}
 	}
 }
 

@@ -18,7 +18,8 @@ VPATH = kernel: \
 LDSCRIPT = linker.ld
 
 CFLAGS = -g -c -Wall -Os -mthumb -mcpu=cortex-m3 $(INC) -std=c99
-LFLAGS = -g -Wall -Os -mthumb -mcpu=cortex-m3 -nostartfiles --specs=nano.specs -T$(LDSCRIPT)
+LFLAGS = -g -Wall -Os -mthumb -mcpu=cortex-m3 -nostartfiles --specs=rdimon.specs \
+		-T$(LDSCRIPT) -lm
 
 OUTPUT = app.elf
 

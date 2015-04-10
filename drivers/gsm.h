@@ -2,7 +2,7 @@
 #ifndef __gsm_h__
 #define __gsm_h__
 
-extern uint8_t 	gsm_send_check_resp	(	char *, 
+extern int8_t 	gsm_send_check_resp	(	char *, 
 										char *
 									);
 
