@@ -38,22 +38,13 @@ typedef struct
 	uint8_t		* rx_fifo;
 }UART_FIFO;
 
-// extern  volatile uint32_t 	i_first;			// index of oldest data byte in buffer
-// extern  volatile uint32_t 	i_last;				// index of newest data byte in buffer
-// extern  volatile uint8_t	rx_ovf;
-// extern  volatile uint8_t	fifo_full;
-// extern  volatile uint32_t	num_bytes;
-// extern  volatile uint8_t 	rx_fifo[_FIFO_SIZE_];
-// extern  volatile uint8_t	rx_not_empty;
-// extern  volatile uint8_t 	rx_status;
-// //extern uint8_t 	* rx_fifo;
 
 extern UART_FIFO uart3;
 
 extern void 	uart_init(uint8_t, uint32_t);
 extern void 	uart_print(uint8_t, char *);
 extern void 	uart_puts(uint8_t, char *, uint8_t);
-extern uint8_t 	uart_getbyte(void);
-extern void 	setUpFIFO(void);
+extern uint8_t 	uart_getc(uint8_t);
+extern void 	uart_init_fifo(uint8_t);
 
 #endif

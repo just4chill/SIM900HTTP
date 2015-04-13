@@ -77,31 +77,37 @@ void UART3_IRQHandler(void)
 	}
 }
 
-uint8_t uart_getbyte(void)
+uint8_t uart_getc(uint8_t _port)
 {
-	uint8_t _byte = 0;
-	if(uart3.num_bytes == _FIFO_SIZE_)
+	if(_port == 3)
 	{
-		uart3.fifo_full = 0;
-	}
+		uint8_t _byte = 0;
+		if(uart3.num_bytes == _FIFO_SIZE_)
+		{
+			uart3.fifo_full = 0;
+		}
 
-	if(uart3.num_bytes > 0)
-	{
-		_byte = uart3.rx_fifo[uart3.i_first];
-		uart3.i_first++;
-		uart3.num_bytes--;
-	}
-	else
-	{
-		uart3.rx_not_empty = 0;
-	}
+		if(uart3.num_bytes > 0)
+		{
+			_byte = uart3.rx_fifo[uart3.i_first];
+			uart3.i_first++;
+			uart3.num_bytes--;
+		}
+		else
+		{
+			uart3.rx_not_empty = 0;
+		}
 
-	if(uart3.i_first == _FIFO_SIZE_)
-	{
-		uart3.i_first = 0;
-	}
+		if(uart3.i_first == _FIFO_SIZE_)
+		{
+			uart3.i_first = 0;
+		}
 
-	return _byte;
+		return _byte;		
+	}
+	
+	// Never execute
+	return 0;
 }
 
 
@@ -283,13 +289,17 @@ void uart_puts(uint8_t port, char * buff, uint8_t len)
 	}
 }
 
-void setUpFIFO(void)
+void uart_init_fifo(uint8_t _port)
 {
-	uart3.i_first = 0;			
- 	uart3.i_last = 0;				
- 	uart3.rx_ovf = 0;
- 	uart3.fifo_full = 0;
- 	uart3.num_bytes = 0;
- 	uart3.rx_not_empty = 0;
- 	uart3.rx_fifo = (uint8_t *) pvPortMalloc(_FIFO_SIZE_);
+	if(_port == 3)
+	{
+		uart3.i_first = 0;			
+	 	uart3.i_last = 0;				
+	 	uart3.rx_ovf = 0;
+	 	uart3.fifo_full = 0;
+	 	uart3.num_bytes = 0;
+	 	uart3.rx_not_empty = 0;
+	 	uart3.rx_fifo = (uint8_t *) pvPortMalloc(_FIFO_SIZE_);		
+	}
+
 }
