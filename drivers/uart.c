@@ -303,3 +303,11 @@ void uart_init_fifo(uint8_t _port)
 	}
 
 }
+
+void _debug_print(char * str)
+{
+	for(uint8_t i = 0;str[i] != '\0';i++)
+	{
+		uart_puts(0, &str[i], 1);
+	}
+}

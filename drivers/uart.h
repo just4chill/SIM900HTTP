@@ -46,5 +46,6 @@ extern void 	uart_print(uint8_t, char *);
 extern void 	uart_puts(uint8_t, char *, uint8_t);
 extern uint8_t 	uart_getc(uint8_t);
 extern void 	uart_init_fifo(uint8_t);
+extern void 	_debug_print(char *);
 
 #endif

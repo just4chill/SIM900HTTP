@@ -7,6 +7,7 @@
 extern int8_t gsm_send_check_resp(
 				char *,
 				char *,
+				uint8_t *,
 				uint16_t,
 				uint8_t
 		);

@@ -33,7 +33,8 @@ OBJS = 	list.o \
 		system_LPC17xx.o \
 		main.o \
 		uart.o \
-		syscalls.o
+		syscalls.o \
+		gsm.o
 
 all: $(OBJS)
 	$(CC)gcc $(LFLAGS) $(OBJS) -o $(OUTPUT)
