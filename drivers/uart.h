@@ -54,5 +54,6 @@ extern void 	uart_init(uint8_t, uint32_t);
 extern void 	uart_print(uint8_t, char *);
 extern void 	uart_puts(uint8_t, char *, uint8_t);
 extern uint8_t 	uart_getbyte(void);
+extern void 	setUpFIFO(void);
 
 #endif

@@ -4,6 +4,7 @@
 #include "system_LPC17xx.h"
 #include <stdint.h>
 #include <string.h>
+#include "FreeRTOS.h"
 
 #define OVF_SLOT 1
 
@@ -280,4 +281,15 @@ void uart_puts(uint8_t port, char * buff, uint8_t len)
 		}
 		while(!((LPC_UART3->LSR) & TEMT));
 	}
+}
+
+void setUpFIFO(void)
+{
+	uart3.i_first = 0;			
+ 	uart3.i_last = 0;				
+ 	uart3.rx_ovf = 0;
+ 	uart3.fifo_full = 0;
+ 	uart3.num_bytes = 0;
+ 	uart3.rx_not_empty = 0;
+ 	uart3.rx_fifo = (uint8_t *) pvPortMalloc(_FIFO_SIZE_);
 }
