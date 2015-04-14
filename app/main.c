@@ -10,16 +10,19 @@
 #include <string.h>
 #include <stdlib.h>
 
-static char ip_addr[20];
+char 	ip_addr[20];
+char 	gprs_state[20];
+char 	http_status_code[20];
+uint16_t http_status = 404;
+int8_t 	rssi = 0;
+char 	rssi_buff[3];
 
 void 		prvSetupHardware( void );
 static void sendToModem(void * pvParameters);
 static void respFromModem(void * pvParameters);
 
 void upModem(void);
-void testHttp(void);
-
-uint8_t * gsm_buff;
+void http_get_test(void);
 
 int main(void)
 {
@@ -60,7 +63,7 @@ static void sendToModem(void * pvParameters)
 			upModem();
 			test_flag = 1;
 		}
-		testHttp();
+		http_get_test();
 		vTaskDelay(1000);
 	}
 }
@@ -70,7 +73,6 @@ static void respFromModem(void * pvParameters)
 	_debug_print("Modem respFromModem\r\n");
 	for(;;)
 	{
-		//uart_print(0, "Task2\r\n");
 		vTaskDelay(5000);
 	}
 }
@@ -88,201 +90,107 @@ void prvSetupHardware( void )
 	_debug_print("System started\r\n");
 }
 
-void testHttp(void)
+void http_get_test(void)
 {
-	if(
-		gsm_send_check_resp("AT+HTTPINIT\r",
-						"OK",
-						gsm_buff,
-						300,
-						5)
-		){
-		_debug_print("Finished init");
-		uart_append_crlf(0);
-		if(
-			gsm_send_check_resp("AT+HTTPPARA=\"URL\",\"http://httpbin.org/ip\"\r",
-							"OK",
-							gsm_buff,
-							300,
-							5)
-			){
-			if(
-				gsm_send_check_resp("AT+HTTPACTION=0\r",
-								"OK",
-								gsm_buff,
-								10000,
-								5)
-				){	
-				char http_status[10];
-				// +HTTPACTION: 0,
-				http_status[0] = gsm_buff[sizeof("+HTTPACTION: 0,") + 6];
-				http_status[1] = gsm_buff[sizeof("+HTTPACTION: 0,") + 7];
-				http_status[2] = gsm_buff[sizeof("+HTTPACTION: 0,") + 8];
-				http_status[3] = '\0';
-				_debug_print("Status: ");
-				_debug_print(http_status);
-				if(
-					gsm_send_check_resp("AT+HTTPREAD\r",
-									"OK",
-									gsm_buff,
-									2000,
-									5)
-					){	
-					_debug_print("Finished reading - ");
-					_debug_print(gsm_buff);
-					uart_append_crlf(0);
-					if(
-					gsm_send_check_resp("AT+HTTPTERM\r",
-									"OK",
-									gsm_buff,
-									1000,
-									5)
-					){
-						_debug_print("Finished terminating");
-						uart_append_crlf(0);
-					}
-				}					
+	if(gsm_http_init() == 1)
+	{
+		_debug_print("http init ok\r\n");
+		if(gsm_http_set_param("http://thawing-wave-2888.herokuapp.com/weight/1") == 1)
+		{
+			_debug_print("http set para ok\r\n");
+			http_status = gsm_http_req_get(http_status_code);
+			_debug_print("status: ");
+			_debug_print(http_status_code);
+			_debug_print("\r\n");
+			if(http_status == 200)
+			{
+				_debug_print("http 200\r\n");
+				gsm_http_read();
+			}
+			if(gsm_http_term() == 1)
+			{
+				_debug_print("http term ok\r\n");
 			}
 		}
+		else
+		{
+			_debug_print("http para failed\r\n");
+		}
 	}
+	else
+	{
+		_debug_print("http init failed\r\n");
+		_debug_print(gsm_buff);
+	}
+}
+
+void modem_testA(void)
+{
+	if(gsm_send_at() == 1)
+		_debug_print("Got OK\r\n");
+	else
+		_debug_print("Error: \"AT\"\r\n");
+
+	vTaskDelay(500);
+	if(gsm_check_network() == 1)
+		_debug_print("Network reg OK\r\n");
+	else
+		_debug_print("Error: \"AT+CREG?\"\r\n");
+	vTaskDelay(500);
+	// Read RSSI
+	rssi = gsm_get_rssi();
+	rssi_buff[0] = (rssi / 10) + 48;
+	rssi_buff[1] = (rssi % 10) + 48;
+	rssi_buff[2] = '\0';
+	if(rssi > 10)
+	{
+		_debug_print("RSSI: ");
+		_debug_print(rssi_buff);
+		_debug_print("\r\n");
+	}
+	else
+		_debug_print("Error: \"AT+CSQ\"\r\n");
+}
+
+void modem_testB(void)
+{
+	if(gsm_get_gprs_state() == 1)
+		_debug_print("GPRS Enabled\r\n");
+	else
+		_debug_print("Error: \"AT+CGATT?\"\r\n");
+
+	if(gsm_set_apn() == 1)
+		_debug_print("APN Set success\r\n");
+	else
+		_debug_print("Error: \"AT+CSTT\"\r\n");
+
+	if(gsm_bring_wl_up() == 1)
+		_debug_print("wl up success\r\n");
+	else
+		_debug_print("wl up failed\r\n");
+
+	if(gsm_config_sapbr() == 1)
+		_debug_print("SAPBR config success\r\n");
+	else
+		_debug_print("Error: \"AT+SAPBR\"\r\n");
+
+	if(gsm_set_sapbr() == 1)
+		_debug_print("SAPBR set success\r\n");
+	else
+		_debug_print("Error: \"AT+SAPBR\"\r\n");
 }
 
 void upModem(void)
 {
-	char buff[20];
-	// Check AT OK
-	_debug_print("Sending AT");
-	uart_append_crlf(0);
-	if(
-		gsm_send_check_resp("AT\r",
-						"OK",
-						gsm_buff,
-						100,
-						5)
-		){
-		uart_append_crlf(0);
-		_debug_print("AT OK");
-		uart_append_crlf(0);
-
-		vTaskDelay(500);
-
-		// Check SIM Insertion
-		_debug_print("Sending CREG");
-		uart_append_crlf(0);
-		if(
-			gsm_send_check_resp("AT+CREG?\r",
-							"+CREG: 1,1",
-							gsm_buff,
-							100,
-							5)
-		){
-			uart_append_crlf(0);
-			_debug_print("CREG OK");
-			uart_append_crlf(0);
-			vTaskDelay(2000);	
-			_debug_print("Sending CSQ");
-			uart_append_crlf(0);
-
-			if(
-			gsm_send_check_resp("AT+CSQ\r",
-								"OK",
-								gsm_buff,
-								100,
-								5)
-			){
-			uart_append_crlf(0);
-			_debug_print("RSSI: ");
-			//sprintf(buff, "%d",get_rssi(gsm_buff));
-			//uint8_t rssi = get_rssi(gsm_buff);
-			buff[0] = gsm_buff[8];
-			if(gsm_buff[9] == ',')
-			{
-				buff[1] = '\0';
-			}
-			else
-			{
-				buff[1] = gsm_buff[9];
-				buff[2] = '\0';
-			}
-
-			uint8_t rssi = ((buff[0] - 48) * 10) + (buff[1] - 48);
-			
-			_debug_print(buff);
-			uart_append_crlf(0);
-			vTaskDelay(2000);	
-			_debug_print("Sending CSTT");
-			uart_append_crlf(0);
-
-			// Register APN		
-				if(
-					gsm_send_check_resp("AT+CSTT=\"TATA.DOCOMO.INTERNET\"\r",
-									"OK",
-									gsm_buff,
-									100,
-									5)
-				){
-					uart_append_crlf(0);
-					_debug_print("APN Success");
-					uart_append_crlf(0);
-					vTaskDelay(2000);			
-					_debug_print("Sending CIICR");
-					uart_append_crlf(0);
-					if(
-						gsm_send_check_resp("AT+CIICR\r",
-										"OK",
-										gsm_buff,
-										1000,
-										5)
-					){
-						uart_append_crlf(0);
-						_debug_print("Bring wireless up");
-						uart_append_crlf(0);
-						vTaskDelay(2000);	
-						_debug_print("Sending CIFSR");
-						uart_append_crlf(0);
-						if(
-							gsm_send_check_resp("AT+CIFSR\r",
-											"OK",
-											gsm_buff,
-											300,
-											5)
-						){
-							uart_append_crlf(0);
-							strcpy(ip_addr, gsm_buff);
-							_debug_print("IP Address: ");
-							_debug_print(ip_addr);
-							uart_append_crlf(0);	
-							vTaskDelay(2000);
-							_debug_print("Sending SAPBR");
-							uart_append_crlf(0);
-							if(
-								gsm_send_check_resp("AT+SAPBR=3,1,\"APN\",\"TATA.DOCOMO.INTERNET\"\r",
-												"OK",
-												gsm_buff,
-												100,
-												5)
-							){
-								uart_append_crlf(0);
-								_debug_print("SAPBR1");
-								uart_append_crlf(0);	
-								vTaskDelay(2000);
-								if(
-									gsm_send_check_resp("AT+SAPBR=1,1\r",
-													"OK",
-													gsm_buff,
-													100,
-													5)
-								){
-									uart_append_crlf(0);
-									_debug_print("SAPBR2");
-									uart_append_crlf(0);	
-									vTaskDelay(500);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	modem_testA();
+	modem_testB();
+	gsm_get_ip_status(gprs_state);
+	gsm_get_ip_addr(ip_addr);
+	_debug_print("ip: ");
+	_debug_print(ip_addr);
+	_debug_print("\r\n");
+	_debug_print("status: ");
+	_debug_print(gprs_state);
+	_debug_print("\r\n");
+	vTaskDelay(1000);
 }
